@@ -2865,7 +2865,7 @@ namespace ts {
      * Gets the effective type parameters. If the node was parsed in a
      * JavaScript file, gets the type parameters from the `@template` tag from JSDoc.
      */
-    export function getEffectiveTypeParameterDeclarations(node: DeclarationWithTypeParameters, checkJSDoc?: boolean): ReadonlyArray<TypeParameterDeclaration> {
+    export function getEffectiveTypeParameterDeclarations(node: DeclarationWithTypeParameters, checkJSDoc?: boolean): ReadonlyArray<TypeParameterDeclaration> | undefined {
         if (node.typeParameters) {
             return node.typeParameters;
         }

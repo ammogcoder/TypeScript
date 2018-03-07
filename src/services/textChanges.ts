@@ -327,6 +327,10 @@ namespace ts.textChanges {
             return this;
         }
 
+        private insertNodesAt(sourceFile: SourceFile, pos: number, newNodes: ReadonlyArray<Node>, options: InsertNodeOptions = {}): void {
+            this.changes.push({ kind: ChangeKind.ReplaceWithMultipleNodes, sourceFile, options, nodes: newNodes, range: { pos, end: pos } });
+        }
+
         public insertNodeAtTopOfFile(sourceFile: SourceFile, newNode: Statement, blankLineBetween: boolean): void {
             const pos = getInsertionPositionAtSourceFileTop(sourceFile);
             this.insertNodeAt(sourceFile, pos, newNode, {
@@ -347,10 +351,21 @@ namespace ts.textChanges {
 
         /** Prefer this over replacing a node with another that has a type annotation, as it avoids reformatting the other parts of the node. */
         public insertTypeAnnotation(sourceFile: SourceFile, node: TypeAnnotatable, type: TypeNode): void {
-            const end = (isFunctionLike(node)
-                ? findChildOfKind(node, SyntaxKind.CloseParenToken, sourceFile)!
-                : node.kind !== SyntaxKind.VariableDeclaration && node.questionToken ? node.questionToken : node.name).end;
-            this.insertNodeAt(sourceFile, end, type, { prefix: ": " });
+            if (isArrowFunction(node) && !findChildOfKind(node, SyntaxKind.CloseParenToken, sourceFile)) {
+                //TODO: don't rewrite body
+                this.replaceNode(sourceFile, node, updateArrowFunction(node, node.modifiers, node.typeParameters, node.parameters, type, node.body));
+            }
+            else {
+                const end = (isFunctionLike(node)
+                    ? findChildOfKind(node, SyntaxKind.CloseParenToken, sourceFile)!
+                    : node.kind !== SyntaxKind.VariableDeclaration && node.questionToken ? node.questionToken : node.name).end;
+                this.insertNodeAt(sourceFile, end, type, { prefix: ": " });
+            }
+        }
+
+        public insertTypeParameters(sourceFile: SourceFile, node: SignatureDeclaration, typeParameters: ReadonlyArray<TypeParameterDeclaration>): void {
+            const lparen = findChildOfKind(node, SyntaxKind.OpenParenToken, sourceFile)!.pos; //todo: what about arrow fn
+            this.insertNodesAt(sourceFile, lparen, typeParameters);
         }
 
         private getOptionsForInsertNodeBefore(before: Node, doubleNewlines: boolean): ChangeNodeOptions {
